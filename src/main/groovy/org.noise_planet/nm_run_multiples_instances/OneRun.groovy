@@ -90,7 +90,7 @@ class OneRun {
 
         String shpPath = rootPath2 + "/InputFiles/"
         // Paramètres de propagation
-        int reflexion_order = 1
+        int reflexion_order = 2
         double max_src_dist = 1000
         double max_ref_dist = 1000
         double wall_alpha = 0.1
@@ -276,7 +276,7 @@ class OneRun {
     }
 
     private static class JDBCComputeRaysOut implements PointNoiseMap.IComputeRaysOutFactory {
-        long exportReceiverRay = 1 // primary key of receiver to export
+        def exportReceiverRay = [1, 2].toArray() // primary key of receiver to export
         KMLDocument kmlDocument
         ZipOutputStream compressedDoc
         String workspace_output
@@ -329,7 +329,7 @@ class OneRun {
             super.finalizeReceiver(receiverId)
             if(jdbccomputeraysout.kmlDocument != null && receiverId < inputData.receiversPk.size()) {
                 receiverId = inputData.receiversPk.get((int)receiverId)
-                if(receiverId == jdbccomputeraysout.exportReceiverRay) {
+                if(jdbccomputeraysout.exportReceiverRay.contains(receiverId)) {
                     // Export rays
                     jdbccomputeraysout.kmlDocument.writeRays(propagationPaths)
                 }
