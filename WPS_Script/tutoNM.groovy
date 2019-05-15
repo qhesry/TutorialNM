@@ -40,10 +40,6 @@ import org.h2gis.api.EmptyProgressVisitor
 )
 def processing() {
 
-    String h2_url = "jdbc:h2://home/quentin/Bureau/OrbisGIS/database;DB_CLOSE_DELAY=30;DEFRAG_ALWAYS=TRUE"
-    String user_name = "sa"
-    String user_password = ""
-
     String sources_table_name = sourcesTableName
     String receivers_table_name = receiversTableName
     String building_table_name = buildingTableName
@@ -57,37 +53,6 @@ def processing() {
     boolean compute_vertical_diffraction = computeVertical
     boolean compute_horizontal_diffraction = computeHorizontal
 
-    boolean H2 =true
-    // Ouverture de la base de donnees PostGreSQL qui recueillera les infos
-    ArrayList<Connection> connections = new ArrayList<>()
-
-    // Connexion à la base
-    def driver
-    if (!H2) {
-        driver = 'org.orbisgis.postgis_jts.Driver'
-    } else {
-        driver = 'org.h2.Driver'
-    }
-    Class.forName(driver)
-    Connection connection = new ConnectionWrapper(DriverManager.getConnection(h2_url, user_name, user_password))
-    connections.add(connection)
-    def sql = Sql.newInstance(h2_url, user_name, user_password, driver)
-
-    if(H2) {
-        sql.execute("CREATE ALIAS IF NOT EXISTS H2GIS_SPATIAL FOR \"org.h2gis.functions.factory.H2GISFunctions.load\";")
-        sql.execute("CALL H2GIS_SPATIAL();")
-    }
-
-
-    //SQL pour l'importation des tables depuis le tuto
-    /*CALL SHPREAD('/home/quentin/Bureau/TutorialNM-master/InputFiles/Buildings.shp','buildings_zone');
-    CALL SHPREAD('/home/quentin/Bureau/TutorialNM-master/InputFiles/Receivers.shp','Receivers');
-    CALL SHPREAD('/home/quentin/Bureau/TutorialNM-master/InputFiles/Sound_source.shp','Sound_source');
-
-    create spatial index on buildings_zone(the_geom);
-    create spatial index on Receivers(the_geom);
-    create spatial index on Sound_source(the_geom);*/
-
     List<ComputeRaysOut.verticeSL> allLevels = new ArrayList<>() // ca c'est la table avec les atténuations
     ArrayList<PropagationPath> propaMap2 = new ArrayList<>() // ca c'est la table avec tous les rayons, attention gros espace memoire !
 
@@ -100,17 +65,16 @@ def processing() {
     //-----------------------------------------------------------------
     // ----------- ICI On calcul les rayons entre sources et recepteurs (c est pour ça r=0, on le fait qu'une fois)
     //-----------------------------------------------------------------
+    Connection connection = sql.createConnection()
 
     PointNoiseMap pointNoiseMap = new PointNoiseMap(building_table_name, sources_table_name, receivers_table_name)
     pointNoiseMap.setComputeHorizontalDiffraction(compute_horizontal_diffraction)
     pointNoiseMap.setComputeVerticalDiffraction(compute_vertical_diffraction)
     pointNoiseMap.setSoundReflectionOrder(reflexion_order)
     pointNoiseMap.setHeightField("HEIGHT")
-    //pointNoiseMap.setDemTable("DEM_LITE2")
     pointNoiseMap.setMaximumPropagationDistance(max_src_dist)
     pointNoiseMap.setMaximumReflectionDistance(max_ref_dist)
     pointNoiseMap.setWallAbsorption(wall_alpha)
-    //pointNoiseMap.setSoilTableName("LAND_USE_ZONE_CAPTEUR2")
     pointNoiseMap.setThreadCount(n_thread)
     JDBCComputeRaysOut jdbcComputeRaysOut = new JDBCComputeRaysOut()
     pointNoiseMap.initialize(connection, new EmptyProgressVisitor())
@@ -209,12 +173,6 @@ String wallAlpha = "0.1"
     description = "The number of thread",
     minOccurs = 1)
 String threadNumber = "10"
-
-/*@LiteralDataInput(
-    title = "Database Path",
-    description = "The path to the database",
-    minOccurs = 1)
-String database_path = "/home/quentin/Bureau/OrbisGIS/database"*/
 
 @LiteralDataInput(
     title = "Compute vertical diffraction",
