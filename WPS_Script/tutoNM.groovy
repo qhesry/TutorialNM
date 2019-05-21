@@ -76,10 +76,7 @@ def processing() {
     pointNoiseMap.setMaximumReflectionDistance(max_ref_dist)
     pointNoiseMap.setWallAbsorption(wall_alpha)
     pointNoiseMap.setThreadCount(n_thread)
-    JDBCComputeRaysOut jdbcComputeRaysOut = new JDBCComputeRaysOut()
     pointNoiseMap.initialize(connection, new EmptyProgressVisitor())
-    pointNoiseMap.setComputeRaysOutFactory(jdbcComputeRaysOut)
-    //jdbcComputeRaysOut.workspace_output = workspace_output
 
     Set<Long> receivers_ = new HashSet<>()
     for (int i = 0; i < pointNoiseMap.getGridDim(); i++) {
@@ -92,31 +89,22 @@ def processing() {
             }
         }
     }
+    sql.execute('drop table if exists RECEIVER_LVL_DAY_ZONE')
+    sql.execute('create table RECEIVER_LVL_DAY_ZONE(IDRECEPTEUR integer, IDSOURCE integer, ATT63 double,'
+                +'ATT125 double, ATT250 double, ATT500 double, ATT1000 double, ATT2000 double, ATT4000 double, ATT8000 double,'
+                +'primary key (IDRECEPTEUR, IDSOURCE))')
 
-    jdbcComputeRaysOut.closeKML()
+    def qry = 'INSERT INTO RECEIVER_LVL_DAY_ZONE (IDRECEPTEUR, IDSOURCE,' +
+                    'ATT63, ATT125, ATT250, ATT500, ATT1000,ATT2000, ATT4000, ATT8000) ' +
+                    'VALUES (?,?,?,?,?,?,?,?,?,?);'
 
-    println("--------------------------")
-    println("- Chemins de propagation -")
-    println("--------------------------")
-    for (int i=0;i< propaMap2.size() ; i++) {
-        println("ReceiverId: " + propaMap2.get(i).idReceiver + "; SourceId: " + propaMap2.get(i).idSource)
-        println("Taille rayon principal S-R: "+ new DecimalFormat("##.##").format(propaMap2.get(i).getSRList().get(0).d) + " m")
-    }
-
-
-    println("------------------------------")
-    println("- Attenuation par couple S-R -")
-    println("------------------------------")
-    for (int i=0;i< allLevels.size() ; i++) {
-        println("ReceiverId: " + allLevels.get(i).receiverId + "; SourceId: " + allLevels.get(i).sourceId+
-                "; 63Hz: "+new DecimalFormat("##.##").format(allLevels.get(i).value[0])+"dB ; 125Hz :"
-                + new DecimalFormat("##.##").format(allLevels.get(i).value[1])+"dB ; 250Hz :"
-                + new DecimalFormat("##.##").format(allLevels.get(i).value[2])+"dB ; 500Hz :"
-                + new DecimalFormat("##.##").format(allLevels.get(i).value[3])+"dB ; 1kHz :"
-                + new DecimalFormat("##.##").format(allLevels.get(i).value[4])+"dB ; 2kHz :"
-                + new DecimalFormat("##.##").format(allLevels.get(i).value[5])+"dB ; 4kHz :"
-                + new DecimalFormat("##.##").format(allLevels.get(i).value[6])+"dB ; 8kHz :"
-                + new DecimalFormat("##.##").format(allLevels.get(i).value[7]))
+    sql.withBatch(100, qry) { ps ->
+        for (int i=0;i< allLevels.size() ; i++) {
+                ps.addBatch(allLevels.get(i).receiverId, allLevels.get(i).sourceId,
+                        allLevels.get(i).value[0], allLevels.get(i).value[1], allLevels.get(i).value[2],
+                        allLevels.get(i).value[3], allLevels.get(i).value[4], allLevels.get(i).value[5],
+                        allLevels.get(i).value[6], allLevels.get(i).value[7])
+        }
     }
 
     literalOutput = i18n.tr("Process done !")
